@@ -97,7 +97,7 @@ INIT:
 	ldi mpr, (0<<UMSEL1 | 1<<USBS1 | 1<<UCSZ11 | 1<<UCSZ10)
 	sts UCSR1C, mpr ; UCSR1C in extended I/O space
 
-	; Enable both transmitter and receiver, and receive interrupt
+	; Enable USART transmitter
 	ldi mpr, (1<<TXEN1)
 	sts UCSR1B, mpr ;
 	
