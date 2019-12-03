@@ -11,9 +11,9 @@
     <OutputFileExtension>.obj</OutputFileExtension>
     <OutputDirectory>$(MSBuildProjectDirectory)\$(Configuration)</OutputDirectory>
     <Language>ASSEMBLY</Language>
-    <AssemblyName>USART-Tx</AssemblyName>
-    <Name>USART-Tx</Name>
-    <RootNamespace>USART-Tx</RootNamespace>
+    <AssemblyName>USART-Rx</AssemblyName>
+    <Name>USART-Rx</Name>
+    <RootNamespace>USART-Rx</RootNamespace>
     <ToolchainFlavour>Native</ToolchainFlavour>
     <EntryFile>$(MSBuildProjectDirectory)\main.asm</EntryFile>
     <KeepTimersRunning>true</KeepTimersRunning>
@@ -65,7 +65,6 @@
         <avrasm.assembler.general.IncludeFile>m128def.inc</avrasm.assembler.general.IncludeFile>
       </AvrAssembler>
     </ToolchainSettings>
-    <OutputType>Executable</OutputType>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <ToolchainSettings>
@@ -80,13 +79,7 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="debounce.asm">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="main.asm">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="test.asm">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

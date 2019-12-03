@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.7  C:\Users\green\Documents\Atmel Studio\7.0\USART-Tx\USART-Tx\main.asm Mon Dec 02 22:19:20 2019
+AVRASM ver. 2.2.7  C:\Users\green\Documents\Atmel Studio\7.0\USART-Tx\USART-Tx\main.asm Tue Dec 03 15:25:14 2019
 
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.3.300\avrasm\inc\m128def.inc'
 C:\Users\green\Documents\Atmel Studio\7.0\USART-Tx\USART-Tx\main.asm(19): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.3.300\avrasm\inc\m128def.inc'
@@ -1237,8 +1237,8 @@ C:\Users\green\Documents\Atmel Studio\7.0\USART-Tx\USART-Tx\main.asm(19): Includ
                                  ;*
                                  ;***********************************************************
                                  ;*
-                                 ;*	 Author: Daniel Green
-                                 ;*	   Date: 12/2/2019
+                                 ;*	 Author: Daniel Green, Cody Mckenzie
+                                 ;*	   Date: 12/3/2019
                                  ;*
                                  ;***********************************************************
                                  
@@ -1306,9 +1306,10 @@ C:\Users\green\Documents\Atmel Studio\7.0\USART-Tx\USART-Tx\main.asm(19): Includ
                                  .equ	TurnR =   ($80|1<<(EngDirL-1))					;0b10100000 Turn Right Action Code
                                  .equ	TurnL =   ($80|1<<(EngDirR-1))					;0b10010000 Turn Left Action Code
                                  .equ	Halt =    ($80|1<<(EngEnR-1)|1<<(EngEnL-1))		;0b11001000 Halt Action Code
+                                 .equ	Frz =	  $F8									;0b11111000 Freeze Action Code
                                  
                                  ; Id of TA Rx for testing Tx 
-                                 .equ	BotID =	$2A; 0b00101010
+                                 .equ	BotID =	$2B; 0b00101010
                                  
                                  ;***********************************************************
                                  ;*	Start of Code Segment
@@ -1341,7 +1342,7 @@ C:\Users\green\Documents\Atmel Studio\7.0\USART-Tx\USART-Tx\main.asm(19): Includ
 00004d bb08                      	out		PORTB, mpr		; so all Port B outputs are low		
                                  
                                  	; Initialize Port D for input
-00004e e008                      	ldi		mpr, 0b00001000	; Set Port D Data Direction Register
+00004e e000                      	ldi		mpr, 0b00000000	; Set Port D Data Direction Register
 00004f bb01                      	out		DDRD, mpr		; for input
 000050 ef03                      	ldi		mpr, 0b11110011	; Initialize Port D Data Register
 000051 bb02                      	out		PORTD, mpr		; so all Port D inputs are Tri-State
@@ -1366,7 +1367,7 @@ C:\Users\green\Documents\Atmel Studio\7.0\USART-Tx\USART-Tx\main.asm(19): Includ
 00005d e00e                      	ldi mpr, (0<<UMSEL1 | 1<<USBS1 | 1<<UCSZ11 | 1<<UCSZ10)
 00005e 9300 009d                 	sts UCSR1C, mpr ; UCSR1C in extended I/O space
                                  
-                                 	; Enable both transmitter and receiver, and receive interrupt
+                                 	; Enable transmitter
 000060 e008                      	ldi mpr, (1<<TXEN1)
 000061 9300 009a                 	sts UCSR1B, mpr ;
                                  	
@@ -1380,189 +1381,208 @@ C:\Users\green\Documents\Atmel Studio\7.0\USART-Tx\USART-Tx\main.asm(19): Includ
                                  ;***********************************************************
                                  MAIN:
 000064 b320                      		in		tmp_cmd, PIND	; Get input from Port D 
-000065 7723                      		andi	tmp_cmd, (1<<PD0|1<<PD1|1<<PD4|1<<PD5|1<<PD6)
+000065 7f23                      		andi	tmp_cmd, (1<<PD0|1<<PD1|1<<PD4|1<<PD5|1<<PD6|1<<PD7)
 000066 d001                      		rcall	NEXT_F
 000067 cffc                      		rjmp	MAIN
                                  NEXT_F:	
 000068 2f02                      		mov		mpr, tmp_cmd	; copy input to mpr for pocessing
-000069 3702                      		cpi		mpr, (1<<PD1|1<<PD4|1<<PD5|1<<PD6)		; Check for PD0 input
+000069 3f02                      		cpi		mpr, (1<<PD1|1<<PD4|1<<PD5|1<<PD6|1<<PD7)		; Check for PD0 input
 00006a f411                      		brne	NEXT_B			; Continue with next check for backward command
-00006b d015                      		rcall	Forward			; Call the subroutine Forward
+00006b d01a                      		rcall	Forward			; Call the subroutine Forward
 00006c 9508                      		ret					
                                  NEXT_B:	
 00006d 2f02                      		mov		mpr, tmp_cmd	
-00006e 3701                      		cpi		mpr, (1<<PD0|1<<PD4|1<<PD5|1<<PD6) ; check for PD1 input
+00006e 3f01                      		cpi		mpr, (1<<PD0|1<<PD4|1<<PD5|1<<PD6|1<<PD7) ; check for PD1 input
 00006f f411                      		brne	NEXT_R
-000070 d01e                      		rcall	Backward		; call subroutine Backward
+000070 d022                      		rcall	Backward		; call subroutine Backward
 000071 9508                      		ret			
                                  	;PD2 and PD3 are reserved for USART
                                  NEXT_R:
 000072 2f02                      		mov		mpr, tmp_cmd
-000073 3603                      		cpi		mpr, (1<<PD0|1<<PD1|1<<PD5|1<<PD6) ; check for PD4 input
+000073 3e03                      		cpi		mpr, (1<<PD0|1<<PD1|1<<PD5|1<<PD6|1<<PD7) ; check for PD4 input
 000074 f411                      		brne	NEXT_L			 
-000075 d027                      		rcall	Right			; call subroutine Right
+000075 d02a                      		rcall	Right			; call subroutine Right
 000076 9508                      		ret
                                  NEXT_L:
 000077 2f02                      		mov		mpr, tmp_cmd
-000078 3503                      		cpi		mpr, (1<<PD0|1<<PD1|1<<PD4|1<<PD6) ; check for PD5 input
+000078 3d03                      		cpi		mpr, (1<<PD0|1<<PD1|1<<PD4|1<<PD6|1<<PD7) ; check for PD5 input
 000079 f411                      		brne	NEXT_H
-00007a d030                      		rcall	Left			; call subroutine Left
+00007a d032                      		rcall	Left			; call subroutine Left
 00007b 9508                      		ret
                                  NEXT_H:
 00007c 2f02                      		mov		mpr, tmp_cmd
-00007d 3303                      		cpi		mpr, (1<<PD0|1<<PD1|1<<PD4|1<<PD5) ; check for PD6 input
-00007e f729                      		brne	MAIN
-00007f d048                      		rcall	Halt			; call subroutine Halt
+00007d 3b03                      		cpi		mpr, (1<<PD0|1<<PD1|1<<PD4|1<<PD5|1<<PD7) ; check for PD6 input
+00007e f411                      		brne	NEXT_FRZ
+00007f d03a                      		rcall	Stop			; call subroutine Stop
 000080 9508                      		ret
+                                 NEXT_FRZ:
+000081 2f02                      		mov		mpr, tmp_cmd
+000082 3703                      		cpi		mpr, (1<<PD0|1<<PD1|1<<PD4|1<<PD5|1<<PD6) ; check for PD7 input
+000083 ff07                      		sbrs	mpr, 7
+000084 d042                      		rcall	Freeze
+000085 9508                      		ret
                                  ;***********************************************************
                                  ;*	Functions and Subroutines
                                  ;***********************************************************
                                  
                                  Forward:
-000081 930f                      		push	mpr			; Save mpr register
-000082 b70f                      		in		mpr, SREG	; Save program state
-000083 930f                      		push	mpr			;
+000086 930f                      		push	mpr			; Save mpr register
+000087 b70f                      		in		mpr, SREG	; Save program state
+000088 930f                      		push	mpr			;
                                  
                                  		; Display Forward cmd on Tx
-000084 eb00                      		ldi		mpr, MovFwd			; Load Forward command
-000085 bb08                      		out		PORTB, mpr			; Send command to port
+000089 eb00                      		ldi		mpr, MovFwd			; Load Forward command
+00008a bb08                      		out		PORTB, mpr			; Send command to port
                                  
                                  		; Copy the botID to cmd reg and transmit
-000086 e21a                      		ldi		cmd, BotID
-000087 d03f                      		rcall	USART_Transmit
+00008b e21b                      		ldi		cmd, BotID
+00008c d047                      		rcall	USART_Transmit
                                  
                                  		; Copy Forwardcmd to cmd reg and transmit
-000088 eb10                      		ldi		cmd, MovFwd
-000089 d03d                      		rcall	USART_Transmit
+00008d eb10                      		ldi		cmd, MovFwd
+00008e d045                      		rcall	USART_Transmit
                                  
-00008a d03f                      		rcall WAIT
-                                 
-00008b 910f                      		pop		mpr		; Restore program state
-00008c bf0f                      		out		SREG, mpr	;
-00008d 910f                      		pop		mpr		; Restore mpr
-00008e 9508                      		ret				; Return from subroutine
+00008f 910f                      		pop		mpr		; Restore program state
+000090 bf0f                      		out		SREG, mpr	;
+000091 910f                      		pop		mpr		; Restore mpr
+000092 9508                      		ret				; Return from subroutine
                                  
                                  Backward:
-00008f 930f                      		push	mpr			; Save mpr register
-000090 b70f                      		in		mpr, SREG	; Save program state
-000091 930f                      		push	mpr			;
+000093 930f                      		push	mpr			; Save mpr register
+000094 b70f                      		in		mpr, SREG	; Save program state
+000095 930f                      		push	mpr			;
                                  
                                  		; Display Backward cmd on Tx
-000092 e800                      		ldi		mpr, MovBck		; Load Backward command
-000093 bb08                      		out		PORTB, mpr		; Send command to port
+000096 e800                      		ldi		mpr, MovBck		; Load Backward command
+000097 bb08                      		out		PORTB, mpr		; Send command to port
                                  
                                  		; Copy the botID to cmd reg and transmit
-000094 e21a                      		ldi		cmd, BotID
-000095 d031                      		rcall	USART_Transmit
+000098 e21b                      		ldi		cmd, BotID
+000099 d03a                      		rcall	USART_Transmit
                                  
                                  		; Copy Backwardcmd to cmd reg and transmit
-000096 e810                      		ldi		cmd, MovBck
-000097 d02f                      		rcall	USART_Transmit
-                                 
-000098 d031                      		rcall WAIT
+00009a e810                      		ldi		cmd, MovBck
+00009b d038                      		rcall	USART_Transmit
                                  		  
-000099 910f                      		pop		mpr		; Restore program state
-00009a bf0f                      		out		SREG, mpr	;
-00009b 910f                      		pop		mpr		; Restore mpr
-00009c 9508                      		ret				; Return from subroutine
+00009c 910f                      		pop		mpr		; Restore program state
+00009d bf0f                      		out		SREG, mpr	;
+00009e 910f                      		pop		mpr		; Restore mpr
+00009f 9508                      		ret				; Return from subroutine
                                  
                                  Right:
-00009d 930f                      		push	mpr			; Save mpr register
-00009e b70f                      		in		mpr, SREG	; Save program state
-00009f 930f                      		push	mpr			;
+0000a0 930f                      		push	mpr			; Save mpr register
+0000a1 b70f                      		in		mpr, SREG	; Save program state
+0000a2 930f                      		push	mpr			;
                                  
                                  		; Display Turn Right cmd on Tx
-0000a0 ea00                      		ldi		mpr, (TurnR)		; Load Turn Right command
-0000a1 bb08                      		out		PORTB, mpr		; Send command to port
+0000a3 ea00                      		ldi		mpr, (TurnR)		; Load Turn Right command
+0000a4 bb08                      		out		PORTB, mpr		; Send command to port
                                  
                                  		; Copy the botID to cmd reg and transmit
-0000a2 e21a                      		ldi		cmd, BotID
-0000a3 d023                      		rcall	USART_Transmit
+0000a5 e21b                      		ldi		cmd, BotID
+0000a6 d02d                      		rcall	USART_Transmit
                                  
                                  		; Copy Turn Right to cmd reg and transmit
-0000a4 ea10                      		ldi		cmd, TurnR
-0000a5 d021                      		rcall	USART_Transmit
+0000a7 ea10                      		ldi		cmd, TurnR
+0000a8 d02b                      		rcall	USART_Transmit
                                  
-0000a6 d023                      		rcall WAIT
-                                 
-0000a7 910f                      		pop		mpr		; Restore program state
-0000a8 bf0f                      		out		SREG, mpr	;
-0000a9 910f                      		pop		mpr		; Restore mpr
-0000aa 9508                      		ret				; Return from subroutine
+0000a9 910f                      		pop		mpr		; Restore program state
+0000aa bf0f                      		out		SREG, mpr	;
+0000ab 910f                      		pop		mpr		; Restore mpr
+0000ac 9508                      		ret				; Return from subroutine
                                  
                                  Left:
-0000ab 930f                      		push	mpr			; Save mpr register
-0000ac b70f                      		in		mpr, SREG	; Save program state
-0000ad 930f                      		push	mpr			;
+0000ad 930f                      		push	mpr			; Save mpr register
+0000ae b70f                      		in		mpr, SREG	; Save program state
+0000af 930f                      		push	mpr			;
                                  
                                  		; Display Turn Left cmd on Tx
-0000ae e900                      		ldi		mpr, TurnL		; Load Turn Left command
-0000af bb08                      		out		PORTB, mpr		; Send command to port
+0000b0 e900                      		ldi		mpr, TurnL		; Load Turn Left command
+0000b1 bb08                      		out		PORTB, mpr		; Send command to port
                                  
                                  		; Copy the botID to cmd reg and transmit
-0000b0 e21a                      		ldi		cmd, BotID
-0000b1 d015                      		rcall	USART_Transmit
+0000b2 e21b                      		ldi		cmd, BotID
+0000b3 d020                      		rcall	USART_Transmit
                                  
                                  		; Copy Turn Left to cmd reg and transmit
-0000b2 e910                      		ldi		cmd, TurnL
-0000b3 d013                      		rcall	USART_Transmit
+0000b4 e910                      		ldi		cmd, TurnL
+0000b5 d01e                      		rcall	USART_Transmit
                                  
-0000b4 d015                      		rcall WAIT
-                                 
-0000b5 910f                      		pop		mpr		; Restore program state
-0000b6 bf0f                      		out		SREG, mpr	;
-0000b7 910f                      		pop		mpr		; Restore mpr
-0000b8 9508                      		ret				; Return from subroutine
+0000b6 910f                      		pop		mpr		; Restore program state
+0000b7 bf0f                      		out		SREG, mpr	;
+0000b8 910f                      		pop		mpr		; Restore mpr
+0000b9 9508                      		ret				; Return from subroutine
                                  
                                  Stop:
-0000b9 930f                      		push	mpr			; Save mpr register
-0000ba b70f                      		in		mpr, SREG	; Save program state
-0000bb 930f                      		push	mpr			;
+0000ba 930f                      		push	mpr			; Save mpr register
+0000bb b70f                      		in		mpr, SREG	; Save program state
+0000bc 930f                      		push	mpr			;
                                  
                                  		; Display Halt cmd on Tx
-0000bc ec08                      		ldi		mpr, (Halt)		; Load Halt command
-0000bd bb08                      		out		PORTB, mpr		; Send command to port
+0000bd ec08                      		ldi		mpr, Halt		; Load Halt command
+0000be bb08                      		out		PORTB, mpr		; Send command to port
                                  
                                  		; Copy the botID to cmd reg and transmit
-0000be e21a                      		ldi		cmd, BotID
-0000bf d007                      		rcall	USART_Transmit
+0000bf e21b                      		ldi		cmd, BotID
+0000c0 d013                      		rcall	USART_Transmit
                                  
                                  		; Copy Haltcmd to cmd reg and transmit
-0000c0 ec18                      		ldi		cmd, Halt
-0000c1 d005                      		rcall	USART_Transmit
-                                 
-0000c2 d007                      		rcall WAIT
+0000c1 ec18                      		ldi		cmd, Halt
+0000c2 d011                      		rcall	USART_Transmit
                                  
 0000c3 910f                      		pop		mpr		; Restore program state
 0000c4 bf0f                      		out		SREG, mpr	;
 0000c5 910f                      		pop		mpr		; Restore mpr
 0000c6 9508                      		ret				; Return from subroutine
+                                 
+                                 Freeze:
+0000c7 930f                      		push	mpr			; Save mpr register
+0000c8 b70f                      		in		mpr, SREG	; Save program state
+0000c9 930f                      		push	mpr			;
+                                 
+                                 		; Display Freeze cmd on Tx LED
+0000ca ef08                      		ldi		mpr, Frz		; Load Frz command
+0000cb bb08                      		out		PORTB, mpr		; Send command to port
+                                 
+                                 		; Copy the botID to cmd reg and transmit
+0000cc e21b                      		ldi		cmd, BotID
+0000cd d006                      		rcall	USART_Transmit
+                                 
+                                 		; Copy Haltcmd to cmd reg and transmit
+0000ce ef18                      		ldi		cmd, Frz
+0000cf d004                      		rcall	USART_Transmit
+                                 
+0000d0 910f                      		pop		mpr		; Restore program state
+0000d1 bf0f                      		out		SREG, mpr	;
+0000d2 910f                      		pop		mpr		; Restore mpr
+0000d3 9508                      		ret				; Return from subroutine
                                  		
                                  USART_Transmit:
-                                 		;sbis	UCSR1A, UDRE1 ; Loop until UDR1 is empty
-                                 		;rjmp	USART_Transmit
-0000c7 9310 009c                 		sts		UDR1, cmd ; Move data to Transmit Data Buffer
-0000c9 9508                      		ret
+0000d4 9100 009b                 		lds		mpr, UCSR1A 
+0000d6 ff05                      		sbrs	mpr, UDRE1 ; Loop until the data register is empty, checking the UDRE bit 
+0000d7 cffc                      		rjmp	USART_Transmit
+0000d8 9310 009c                 		sts		UDR1, cmd ; Move data to Transmit Data Buffer
+0000da 9508                      		ret
                                  		
                                  ; Use timer/counter0 with 10ms delay 50 times 
                                  WAIT:
-0000ca 930f                      	push	r16
-0000cb 931f                      	push	r17
-0000cc e11e                      	LDI		R17, 30 ; Load count = 30 
+0000db 930f                      	push	r16
+0000dc 931f                      	push	r17
+0000dd e11e                      	LDI		R17, 30 ; Load count = 30 
                                  WAIT_10msec:
-0000cd e604                      	LDI		R16, 100 ; Value for delay = 100
-0000ce bf02                      	OUT		TCNT0, R16 ; (Re)load a value for delay
+0000de e604                      	LDI		R16, 100 ; Value for delay = 100
+0000df bf02                      	OUT		TCNT0, R16 ; (Re)load a value for delay
                                  LOOP:
-0000cf b726                      	IN		R18,TIFR ; Read in TOV0
-0000d0 7021                      	ANDI	R18, 0b00000001 ; Check if its set
-0000d1 f3e9                      	BREQ	LOOP ; Loop if TOV0 not set
-0000d2 e021                      	LDI		R18, 0b00000001 ; Reset TOV0
-0000d3 bf26                      	OUT		TIFR, R18 ; Note - write 1 to reset
-0000d4 951a                      	DEC		R17 ; Decrement count
-0000d5 f7b9                      	BRNE	WAIT_10msec ; Loop if count not equal to 0
-0000d6 911f                      	pop		r17
-0000d7 910f                      	pop		r16
-0000d8 9508                      	RET	
+0000e0 b726                      	IN		R18,TIFR ; Read in TOV0
+0000e1 7021                      	ANDI	R18, 0b00000001 ; Check if its set
+0000e2 f3e9                      	BREQ	LOOP ; Loop if TOV0 not set
+0000e3 e021                      	LDI		R18, 0b00000001 ; Reset TOV0
+0000e4 bf26                      	OUT		TIFR, R18 ; Note - write 1 to reset
+0000e5 951a                      	DEC		R17 ; Decrement count
+0000e6 f7b9                      	BRNE	WAIT_10msec ; Loop if count not equal to 0
+0000e7 911f                      	pop		r17
+0000e8 910f                      	pop		r16
+0000e9 9508                      	RET	
                                  ;***********************************************************
                                  ;*	Stored Program Data
                                  ;***********************************************************
@@ -1588,7 +1608,7 @@ counted separately from r26..r31 here.
 "ATmega128" register use summary:
 x  :   0 y  :   0 z  :   0 r0 :   0 r1 :   0 r2 :   0 r3 :   0 r4 :   0 
 r5 :   0 r6 :   0 r7 :   0 r8 :   0 r9 :   0 r10:   0 r11:   0 r12:   0 
-r13:   0 r14:   0 r15:   0 r16:  78 r17:  15 r18:  11 r19:   0 r20:   0 
+r13:   0 r14:   0 r15:   0 r16:  91 r17:  17 r18:  12 r19:   0 r20:   0 
 r21:   0 r22:   0 r23:   0 r24:   0 r25:   0 r26:   0 r27:   0 r28:   0 
 r29:   0 r30:   0 r31:   0 
 Registers used: 3 out of 35 (8.6%)
@@ -1602,24 +1622,24 @@ brne  :   6 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0
 brvs  :   0 bset  :   0 bst   :   0 call  :   0 cbi   :   0 cbr   :   0 
 clc   :   0 clh   :   0 cli   :   0 cln   :   0 clr   :   0 cls   :   0 
 clt   :   0 clv   :   0 clz   :   0 com   :   0 cp    :   0 cpc   :   0 
-cpi   :   5 cpse  :   0 dec   :   1 elpm  :   0 eor   :   0 fmul  :   0 
-fmuls :   0 fmulsu:   0 icall :   0 ijmp  :   0 in    :   7 inc   :   0 
-jmp   :   0 ld    :   0 ldd   :   0 ldi   :  30 lds   :   0 lpm   :   0 
-lsl   :   0 lsr   :   0 mov   :   5 movw  :   0 mul   :   0 muls  :   0 
-mulsu :   0 neg   :   0 nop   :   0 or    :   0 ori   :   0 out   :  19 
-pop   :  12 push  :  12 rcall :  21 ret   :  12 reti  :   0 rjmp  :   2 
+cpi   :   6 cpse  :   0 dec   :   1 elpm  :   0 eor   :   0 fmul  :   0 
+fmuls :   0 fmulsu:   0 icall :   0 ijmp  :   0 in    :   8 inc   :   0 
+jmp   :   0 ld    :   0 ldd   :   0 ldi   :  33 lds   :   1 lpm   :   0 
+lsl   :   0 lsr   :   0 mov   :   6 movw  :   0 mul   :   0 muls  :   0 
+mulsu :   0 neg   :   0 nop   :   0 or    :   0 ori   :   0 out   :  21 
+pop   :  14 push  :  14 rcall :  19 ret   :  14 reti  :   0 rjmp  :   3 
 rol   :   0 ror   :   0 sbc   :   0 sbci  :   0 sbi   :   0 sbic  :   0 
-sbis  :   0 sbiw  :   0 sbr   :   0 sbrc  :   0 sbrs  :   0 sec   :   0 
+sbis  :   0 sbiw  :   0 sbr   :   0 sbrc  :   0 sbrs  :   2 sec   :   0 
 seh   :   0 sei   :   1 sen   :   0 ser   :   0 ses   :   0 set   :   0 
 sev   :   0 sez   :   0 sleep :   0 spm   :   0 st    :   0 std   :   0 
 sts   :   6 sub   :   0 subi  :   0 swap  :   0 tst   :   0 wdr   :   0 
 
-Instructions used: 16 out of 114 (14.0%)
+Instructions used: 18 out of 114 (15.8%)
 
 "ATmega128" memory use summary [bytes]:
 Segment   Begin    End      Code   Data   Used    Size   Use%
 ---------------------------------------------------------------
-[.cseg] 0x000000 0x0001b2    296      0    296  131072   0.2%
+[.cseg] 0x000000 0x0001d4    330      0    330  131072   0.3%
 [.dseg] 0x000100 0x000100      0      0      0    4096   0.0%
 [.eseg] 0x000000 0x000000      0      0      0    4096   0.0%
 

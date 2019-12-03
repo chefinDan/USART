@@ -11,8 +11,8 @@
 ;*
 ;***********************************************************
 ;*
-;*	 Author: Daniel Green
-;*	   Date: 12/2/2019
+;*	 Author: Daniel Green, Cody Mckenzie
+;*	   Date: 12/3/2019
 ;*
 ;***********************************************************
 
@@ -37,9 +37,10 @@
 .equ	TurnR =   ($80|1<<(EngDirL-1))					;0b10100000 Turn Right Action Code
 .equ	TurnL =   ($80|1<<(EngDirR-1))					;0b10010000 Turn Left Action Code
 .equ	Halt =    ($80|1<<(EngEnR-1)|1<<(EngEnL-1))		;0b11001000 Halt Action Code
+.equ	Frz =	  $F8									;0b11111000 Freeze Action Code
 
 ; Id of TA Rx for testing Tx 
-.equ	BotID =	$2A; 0b00101010
+.equ	BotID =	$2B; 0b00101010
 
 ;***********************************************************
 ;*	Start of Code Segment
@@ -72,7 +73,7 @@ INIT:
 	out		PORTB, mpr		; so all Port B outputs are low		
 
 	; Initialize Port D for input
-	ldi		mpr, 0b00001000	; Set Port D Data Direction Register
+	ldi		mpr, 0b00000000	; Set Port D Data Direction Register
 	out		DDRD, mpr		; for input
 	ldi		mpr, 0b11110011	; Initialize Port D Data Register
 	out		PORTD, mpr		; so all Port D inputs are Tri-State
@@ -97,7 +98,7 @@ INIT:
 	ldi mpr, (0<<UMSEL1 | 1<<USBS1 | 1<<UCSZ11 | 1<<UCSZ10)
 	sts UCSR1C, mpr ; UCSR1C in extended I/O space
 
-	; Enable both transmitter and receiver, and receive interrupt
+	; Enable transmitter
 	ldi mpr, (1<<TXEN1)
 	sts UCSR1B, mpr ;
 	
@@ -111,39 +112,45 @@ INIT:
 ;***********************************************************
 MAIN:
 		in		tmp_cmd, PIND	; Get input from Port D 
-		andi	tmp_cmd, (1<<PD0|1<<PD1|1<<PD4|1<<PD5|1<<PD6)
+		andi	tmp_cmd, (1<<PD0|1<<PD1|1<<PD4|1<<PD5|1<<PD6|1<<PD7)
 		rcall	NEXT_F
 		rjmp	MAIN
 NEXT_F:	
 		mov		mpr, tmp_cmd	; copy input to mpr for pocessing
-		cpi		mpr, (1<<PD1|1<<PD4|1<<PD5|1<<PD6)		; Check for PD0 input
+		cpi		mpr, (1<<PD1|1<<PD4|1<<PD5|1<<PD6|1<<PD7)		; Check for PD0 input
 		brne	NEXT_B			; Continue with next check for backward command
 		rcall	Forward			; Call the subroutine Forward
 		ret					
 NEXT_B:	
 		mov		mpr, tmp_cmd	
-		cpi		mpr, (1<<PD0|1<<PD4|1<<PD5|1<<PD6) ; check for PD1 input
+		cpi		mpr, (1<<PD0|1<<PD4|1<<PD5|1<<PD6|1<<PD7) ; check for PD1 input
 		brne	NEXT_R
 		rcall	Backward		; call subroutine Backward
 		ret			
 	;PD2 and PD3 are reserved for USART
 NEXT_R:
 		mov		mpr, tmp_cmd
-		cpi		mpr, (1<<PD0|1<<PD1|1<<PD5|1<<PD6) ; check for PD4 input
+		cpi		mpr, (1<<PD0|1<<PD1|1<<PD5|1<<PD6|1<<PD7) ; check for PD4 input
 		brne	NEXT_L			 
 		rcall	Right			; call subroutine Right
 		ret
 NEXT_L:
 		mov		mpr, tmp_cmd
-		cpi		mpr, (1<<PD0|1<<PD1|1<<PD4|1<<PD6) ; check for PD5 input
+		cpi		mpr, (1<<PD0|1<<PD1|1<<PD4|1<<PD6|1<<PD7) ; check for PD5 input
 		brne	NEXT_H
 		rcall	Left			; call subroutine Left
 		ret
 NEXT_H:
 		mov		mpr, tmp_cmd
-		cpi		mpr, (1<<PD0|1<<PD1|1<<PD4|1<<PD5) ; check for PD6 input
-		brne	MAIN
-		rcall	Halt			; call subroutine Halt
+		cpi		mpr, (1<<PD0|1<<PD1|1<<PD4|1<<PD5|1<<PD7) ; check for PD6 input
+		brne	NEXT_FRZ
+		rcall	Stop			; call subroutine Stop
+		ret
+NEXT_FRZ:
+		mov		mpr, tmp_cmd
+		cpi		mpr, (1<<PD0|1<<PD1|1<<PD4|1<<PD5|1<<PD6) ; check for PD7 input
+		sbrs	mpr, 7
+		rcall	Freeze
 		ret
 ;***********************************************************
 ;*	Functions and Subroutines
@@ -166,8 +173,6 @@ Forward:
 		ldi		cmd, MovFwd
 		rcall	USART_Transmit
 
-		rcall WAIT
-
 		pop		mpr		; Restore program state
 		out		SREG, mpr	;
 		pop		mpr		; Restore mpr
@@ -189,8 +194,6 @@ Backward:
 		; Copy Backwardcmd to cmd reg and transmit
 		ldi		cmd, MovBck
 		rcall	USART_Transmit
-
-		rcall WAIT
 		  
 		pop		mpr		; Restore program state
 		out		SREG, mpr	;
@@ -214,8 +217,6 @@ Right:
 		ldi		cmd, TurnR
 		rcall	USART_Transmit
 
-		rcall WAIT
-
 		pop		mpr		; Restore program state
 		out		SREG, mpr	;
 		pop		mpr		; Restore mpr
@@ -238,8 +239,6 @@ Left:
 		ldi		cmd, TurnL
 		rcall	USART_Transmit
 
-		rcall WAIT
-
 		pop		mpr		; Restore program state
 		out		SREG, mpr	;
 		pop		mpr		; Restore mpr
@@ -251,7 +250,7 @@ Stop:
 		push	mpr			;
 
 		; Display Halt cmd on Tx
-		ldi		mpr, (Halt)		; Load Halt command
+		ldi		mpr, Halt		; Load Halt command
 		out		PORTB, mpr		; Send command to port
 
 		; Copy the botID to cmd reg and transmit
@@ -262,7 +261,27 @@ Stop:
 		ldi		cmd, Halt
 		rcall	USART_Transmit
 
-		rcall WAIT
+		pop		mpr		; Restore program state
+		out		SREG, mpr	;
+		pop		mpr		; Restore mpr
+		ret				; Return from subroutine
+
+Freeze:
+		push	mpr			; Save mpr register
+		in		mpr, SREG	; Save program state
+		push	mpr			;
+
+		; Display Freeze cmd on Tx LED
+		ldi		mpr, Frz		; Load Frz command
+		out		PORTB, mpr		; Send command to port
+
+		; Copy the botID to cmd reg and transmit
+		ldi		cmd, BotID
+		rcall	USART_Transmit
+
+		; Copy Haltcmd to cmd reg and transmit
+		ldi		cmd, Frz
+		rcall	USART_Transmit
 
 		pop		mpr		; Restore program state
 		out		SREG, mpr	;
@@ -270,8 +289,9 @@ Stop:
 		ret				; Return from subroutine
 		
 USART_Transmit:
-		;sbis	UCSR1A, UDRE1 ; Loop until UDR1 is empty
-		;rjmp	USART_Transmit
+		lds		mpr, UCSR1A 
+		sbrs	mpr, UDRE1 ; Loop until the data register is empty, checking the UDRE bit 
+		rjmp	USART_Transmit
 		sts		UDR1, cmd ; Move data to Transmit Data Buffer
 		ret
 		

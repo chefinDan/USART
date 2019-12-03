@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.7  C:\Users\green\Documents\Atmel Studio\7.0\USART-Tx\USART-Tx\main.asm Mon Dec 02 22:19:20 2019
+AVRASM ver. 2.2.7  C:\Users\green\Documents\Atmel Studio\7.0\USART-Tx\USART-Tx\main.asm Tue Dec 03 15:25:14 2019
 
 
 EQU  SIGNATURE_000 0000001e
@@ -879,20 +879,23 @@ EQU  MovBck       00000080
 EQU  TurnR        000000a0
 EQU  TurnL        00000090
 EQU  Halt         000000c8
-EQU  BotID        0000002a
+EQU  Frz          000000f8
+EQU  BotID        0000002b
 CSEG INIT         00000046
 CSEG MAIN         00000064
 CSEG NEXT_F       00000068
 CSEG NEXT_B       0000006d
-CSEG Forward      00000081
+CSEG Forward      00000086
 CSEG NEXT_R       00000072
-CSEG Backward     0000008f
+CSEG Backward     00000093
 CSEG NEXT_L       00000077
-CSEG Right        0000009d
+CSEG Right        000000a0
 CSEG NEXT_H       0000007c
-CSEG Left         000000ab
-CSEG USART_Transmit 000000c7
-CSEG WAIT         000000ca
-CSEG Stop         000000b9
-CSEG WAIT_10msec  000000cd
-CSEG LOOP         000000cf
+CSEG Left         000000ad
+CSEG NEXT_FRZ     00000081
+CSEG Stop         000000ba
+CSEG Freeze       000000c7
+CSEG USART_Transmit 000000d4
+CSEG WAIT         000000db
+CSEG WAIT_10msec  000000de
+CSEG LOOP         000000e0
